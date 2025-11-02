@@ -1,0 +1,216 @@
+{
+  "description": "Mock printer status data for testing - represents a QIDI X-Max 3 in standby state",
+  "timestamp": "2025-09-19T10:30:00Z",
+  "scenarios": {
+    "standby": {
+      "description": "Printer ready, no active print job, room temperature",
+      "data": {
+        "print_stats": {
+          "filename": "",
+          "total_duration": 0.0,
+          "print_duration": 0.0,
+          "filament_used": 0.0,
+          "state": "standby",
+          "message": "Printer is ready",
+          "info": {
+            "total_layer": null,
+            "current_layer": null
+          }
+        },
+        "display_status": {
+          "progress": 0.0,
+          "message": "Printer is ready"
+        },
+        "extruder": {
+          "temperature": 22.5,
+          "target": 0.0,
+          "power": 0.0,
+          "can_extrude": false,
+          "pressure_advance": 0.05,
+          "smooth_time": 0.04
+        },
+        "heater_bed": {
+          "temperature": 21.8,
+          "target": 0.0,
+          "power": 0.0
+        },
+        "toolhead": {
+          "homed_axes": "xyz",
+          "axis_minimum": [0, 0, 0],
+          "axis_maximum": [270, 270, 300],
+          "max_velocity": 200.0,
+          "max_accel": 3000.0,
+          "position": [135.0, 135.0, 5.0, 0.0],
+          "print_time": 0.0,
+          "estimated_print_time": 0.0
+        },
+        "gcode_move": {
+          "speed_factor": 1.0,
+          "extrude_factor": 1.0,
+          "absolute_coordinates": true,
+          "absolute_extrude": true,
+          "homing_origin": [0.0, 0.0, 0.0, 0.0],
+          "position": [135.0, 135.0, 5.0, 0.0],
+          "gcode_position": [135.0, 135.0, 5.0, 0.0]
+        },
+        "virtual_sdcard": {
+          "file_path": null,
+          "progress": 0.0,
+          "is_active": false,
+          "file_position": 0,
+          "file_size": 0
+        },
+        "pause_resume": {
+          "is_paused": false
+        },
+        "fan": {
+          "speed": 0.0,
+          "rpm": 0
+        },
+        "temperature_host": {
+          "temperature": 45.2
+        }
+      }
+    },
+    "heating": {
+      "description": "Printer heating up before print",
+      "data": {
+        "print_stats": {
+          "filename": "test_cube.gcode",
+          "total_duration": 0.0,
+          "print_duration": 0.0,
+          "filament_used": 0.0,
+          "state": "standby",
+          "message": "Heating extruder and bed...",
+          "info": {
+            "total_layer": 50,
+            "current_layer": 0
+          }
+        },
+        "display_status": {
+          "progress": 0.0,
+          "message": "Heating extruder: 185°C / 210°C"
+        },
+        "extruder": {
+          "temperature": 185.2,
+          "target": 210.0,
+          "power": 0.85,
+          "can_extrude": false,
+          "pressure_advance": 0.05,
+          "smooth_time": 0.04
+        },
+        "heater_bed": {
+          "temperature": 55.1,
+          "target": 60.0,
+          "power": 0.4
+        },
+        "toolhead": {
+          "homed_axes": "xyz",
+          "axis_minimum": [0, 0, 0],
+          "axis_maximum": [270, 270, 300],
+          "max_velocity": 200.0,
+          "max_accel": 3000.0,
+          "position": [10.0, 10.0, 0.3, 0.0],
+          "print_time": 0.0,
+          "estimated_print_time": 3600.0
+        },
+        "gcode_move": {
+          "speed_factor": 1.0,
+          "extrude_factor": 1.0,
+          "absolute_coordinates": true,
+          "absolute_extrude": true,
+          "homing_origin": [0.0, 0.0, 0.0, 0.0],
+          "position": [10.0, 10.0, 0.3, 0.0],
+          "gcode_position": [10.0, 10.0, 0.3, 0.0]
+        },
+        "virtual_sdcard": {
+          "file_path": "/home/pi/printer_data/gcodes/test_cube.gcode",
+          "progress": 0.0,
+          "is_active": true,
+          "file_position": 0,
+          "file_size": 1250000
+        },
+        "pause_resume": {
+          "is_paused": false
+        },
+        "fan": {
+          "speed": 0.0,
+          "rpm": 0
+        },
+        "temperature_host": {
+          "temperature": 47.8
+        }
+      }
+    },
+    "printing": {
+      "description": "Active print job in progress",
+      "data": {
+        "print_stats": {
+          "filename": "test_cube.gcode",
+          "total_duration": 0.0,
+          "print_duration": 1456.78,
+          "filament_used": 125.5,
+          "state": "printing",
+          "message": "Printing test_cube.gcode",
+          "info": {
+            "total_layer": 50,
+            "current_layer": 23
+          }
+        },
+        "display_status": {
+          "progress": 0.46,
+          "message": "Printing layer 23/50"
+        },
+        "extruder": {
+          "temperature": 209.8,
+          "target": 210.0,
+          "power": 0.15,
+          "can_extrude": true,
+          "pressure_advance": 0.05,
+          "smooth_time": 0.04
+        },
+        "heater_bed": {
+          "temperature": 59.9,
+          "target": 60.0,
+          "power": 0.05
+        },
+        "toolhead": {
+          "homed_axes": "xyz",
+          "axis_minimum": [0, 0, 0],
+          "axis_maximum": [270, 270, 300],
+          "max_velocity": 200.0,
+          "max_accel": 3000.0,
+          "position": [145.5, 123.8, 4.6, 156.2],
+          "print_time": 1456.78,
+          "estimated_print_time": 3167.0
+        },
+        "gcode_move": {
+          "speed_factor": 1.0,
+          "extrude_factor": 1.0,
+          "absolute_coordinates": true,
+          "absolute_extrude": true,
+          "homing_origin": [0.0, 0.0, 0.0, 0.0],
+          "position": [145.5, 123.8, 4.6, 156.2],
+          "gcode_position": [145.5, 123.8, 4.6, 156.2]
+        },
+        "virtual_sdcard": {
+          "file_path": "/home/pi/printer_data/gcodes/test_cube.gcode",
+          "progress": 0.46,
+          "is_active": true,
+          "file_position": 575000,
+          "file_size": 1250000
+        },
+        "pause_resume": {
+          "is_paused": false
+        },
+        "fan": {
+          "speed": 0.8,
+          "rpm": 2400
+        },
+        "temperature_host": {
+          "temperature": 52.1
+        }
+      }
+    }
+  }
+}

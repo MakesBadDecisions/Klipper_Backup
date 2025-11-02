@@ -1,0 +1,757 @@
+#!/usr/bin/env python3
+"""
+Mock Moonraker API Server for Printer Buddy Development
+Simulates Moonraker REST API endpoints with realistic data
+
+DEPRECATED: This mock server has not been updated for the new architecture
+where test_manager functionality was moved to printer_tests_module.
+Use mock_moonraker_simple.py instead or update this file.
+"""
+
+# DEAD CODE MARKER: This file has outdated imports and function calls
+# that reference the old test_manager module which has been moved/integrated
+
+import json
+import os
+import sys
+import threading
+import time
+import asyncio
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+import socketserver
+
+# Add parent directories to path to import Printer Buddy modules
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+buddy_dir = os.path.dirname(parent_dir)
+sys.path.insert(0, buddy_dir)
+
+# Import the test manager
+# DEAD CODE: test_manager functionality moved to printer_tests_module
+# from printer_tests.test_manager import get_available_tests, run_test, get_run_status, respond_to_run
+
+class MockMoonrakerHandler(BaseHTTPRequestHandler):
+    """HTTP request handler that simulates Moonraker API responses"""
+    
+    def __init__(self, *args, **kwargs):
+        # Load mock data
+        self.mock_data_dir = os.path.join(os.path.dirname(__file__), '..', 'mock_data')
+        self.load_mock_data()
+        super().__init__(*args, **kwargs)
+    
+    def load_mock_data(self):
+        """Load mock data from JSON files"""
+        try:
+            # Load printer status data
+            status_file = os.path.join(self.mock_data_dir, 'printer_status.json')
+            if os.path.exists(status_file):
+                with open(status_file, 'r') as f:
+                    self.printer_data = json.load(f)
+            else:
+                # Fallback data if file doesn't exist
+                self.printer_data = self.get_default_printer_data()
+                
+            print(f"Loaded mock data from {status_file}")
+        except Exception as e:
+            print(f"Error loading mock data: {e}")
+            self.printer_data = self.get_default_printer_data()
+    
+    def get_default_printer_data(self):
+        """Return default printer data if files can't be loaded"""
+        return {
+            "scenarios": {
+                "standby": {
+                    "data": {
+                        "print_stats": {
+                            "filename": "",
+                            "state": "standby",
+                            "message": "Printer is ready",
+                            "print_duration": 0.0,
+                            "total_duration": 0.0,
+                            "filament_used": 0.0
+                        },
+                        "extruder": {
+                            "temperature": 22.5,
+                            "target": 0.0,
+                            "power": 0.0,
+                            "can_extrude": False
+                        },
+                        "heater_bed": {
+                            "temperature": 21.8,
+                            "target": 0.0,
+                            "power": 0.0
+                        },
+                        "toolhead": {
+                            "position": [135.0, 135.0, 5.0, 0.0],
+                            "homed_axes": "xyz"
+                        }
+                    }
+                }
+            }
+        }
+    
+    def do_GET(self):
+        """Handle GET requests"""
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path
+        query_params = parse_qs(parsed_url.query)
+        
+        print(f"GET {self.path}")
+        
+        # Moonraker API endpoints
+        if path == '/server/info':
+            self.send_server_info()
+        elif path == '/printer/info':
+            self.send_printer_info()
+        elif path == '/printer/objects/list':
+            self.send_objects_list()
+        elif path == '/printer/objects/query':
+            self.send_objects_query(query_params)
+        elif path == '/server/files/list':
+            self.send_files_list(query_params)
+        elif path == '/server/temperature_store':
+            self.send_temperature_store()
+        # Printer Buddy API endpoints (proxy to mock data)
+        elif path == '/api/status':
+            self.send_printer_buddy_status()
+        elif path == '/api/config':
+            self.send_printer_buddy_config()
+        elif path == '/api/logs/list':
+            self.send_logs_list()
+        elif path == '/api/logs/file':
+            self.send_log_file(query_params) 
+        elif path == '/api/logs':
+            self.send_printer_buddy_logs()
+        elif path == '/api/tests/list':
+            self.send_tests_list()
+        elif path == '/api/tests/status':
+            self.send_test_status(query_params)
+        # Serve static files for UI
+        elif path == '/' or path == '/index.html':
+            self.serve_ui_file('index.html')
+        elif path.startswith('/css/'):
+            self.serve_ui_file(path[1:])
+        elif path.startswith('/js/'):
+            self.serve_ui_file(path[1:])
+        else:
+            self.send_404()
+    
+    def do_POST(self):
+        """Handle POST requests"""
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path
+        
+        print(f"POST {self.path}")
+        
+        if path == '/printer/emergency_stop':
+            self.send_emergency_stop()
+        elif path == '/printer/gcode/script':
+            self.send_gcode_script()
+        elif path == '/api/gcode':
+            self.send_api_gcode()
+        elif path == '/api/tests/run':
+            self.handle_test_run()
+        elif path == '/api/tests/respond':
+            self.handle_test_respond()
+        elif path == '/printer/print/start':
+            self.send_print_control('start')
+        elif path == '/printer/print/pause':
+            self.send_print_control('pause')
+        elif path == '/printer/print/resume':
+            self.send_print_control('resume')
+        elif path == '/printer/print/cancel':
+            self.send_print_control('cancel')
+        else:
+            self.send_404()
+    
+    def run_async(self, coro):
+        """Helper to run async functions in sync context"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    def handle_test_run(self):
+        """Handle test run POST request"""
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        
+        print(f"DEBUG: Received POST data: {post_data}")
+        
+        try:
+            data = json.loads(post_data)
+            test_id = data.get('test_id', '')
+            
+            print(f"DEBUG: Parsed test_id: '{test_id}'")
+            
+            if not test_id:
+                response = {
+                    "error": {
+                        "code": 400,
+                        "message": "test_id is required"
+                    }
+                }
+                print(f"DEBUG: Missing test_id, sending 400 error")
+                self.send_json_response(response, 400)
+                return
+            
+            print(f"DEBUG: About to run test: {test_id}")
+            # Run async method
+            self.run_async(self.send_test_run(test_id))
+            
+        except json.JSONDecodeError:
+            response = {
+                "error": {
+                    "code": 400,
+                    "message": "Invalid JSON in request body"
+                }
+            }
+            self.send_json_response(response, 400)
+        except Exception as e:
+            response = {
+                "error": {
+                    "code": 500,
+                    "message": f"Internal error: {str(e)}"
+                }
+            }
+            self.send_json_response(response, 500)
+
+    def handle_test_respond(self):
+        """Handle test response POST request"""
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        
+        try:
+            data = json.loads(post_data)
+            run_id = data.get('run_id', '')
+            
+            if not run_id:
+                response = {
+                    "error": {
+                        "code": 400,
+                        "message": "run_id is required"
+                    }
+                }
+                self.send_json_response(response, 400)
+                return
+            
+            # Run async method
+            self.run_async(self.send_test_respond(run_id, data))
+            
+        except json.JSONDecodeError:
+            response = {
+                "error": {
+                    "code": 400,
+                    "message": "Invalid JSON in request body"
+                }
+            }
+            self.send_json_response(response, 400)
+        except Exception as e:
+            response = {
+                "error": {
+                    "code": 500,
+                    "message": f"Internal error: {str(e)}"
+                }
+            }
+            self.send_json_response(response, 500)
+
+    def send_json_response(self, data, status=200):
+        """Send JSON response with proper headers"""
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        
+        json_data = json.dumps(data, indent=2)
+        self.wfile.write(json_data.encode())
+    
+    def send_server_info(self):
+        """Send server info response"""
+        response = {
+            "result": {
+                "klippy_connected": True,
+                "klippy_state": "ready",
+                "components": ["klippy_apis", "file_manager", "database"],
+                "failed_components": [],
+                "registered_directories": {
+                    "gcodes": "/home/pi/printer_data/gcodes",
+                    "config": "/home/pi/printer_data/config"
+                },
+                "warnings": [],
+                "websocket_count": 1,
+                "moonraker_version": "v0.8.0-dev-mock"
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_printer_info(self):
+        """Send printer info response"""
+        response = {
+            "result": {
+                "state": "ready",
+                "state_message": "Printer is ready",
+                "hostname": "qidi-printer-mock",
+                "software_version": "v0.11.0-293-dev",
+                "cpu_info": "4 core ARMv7 Processor",
+                "klipper_path": "/home/pi/klipper",
+                "python_path": "/home/pi/klippy-env/bin/python",
+                "log_file": "/tmp/klippy.log",
+                "config_file": "/home/pi/printer_data/config/printer.cfg"
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_objects_list(self):
+        """Send available objects list"""
+        response = {
+            "result": {
+                "objects": [
+                    "webhooks", "configfile", "mcu", "gcode_move", "print_stats",
+                    "virtual_sdcard", "pause_resume", "display_status", "gcode",
+                    "toolhead", "extruder", "heater_bed", "fan", "temperature_host"
+                ]
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_objects_query(self, query_params):
+        """Send printer objects query response"""
+        # Use standby scenario by default
+        scenario_data = self.printer_data.get("scenarios", {}).get("standby", {}).get("data", {})
+        
+        response = {
+            "result": {
+                "status": scenario_data,
+                "eventtime": time.time()
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_files_list(self, query_params):
+        """Send files list response"""
+        response = {
+            "result": [
+                {
+                    "path": "test_cube.gcode",
+                    "modified": 1634567890.123,
+                    "size": 1250000,
+                    "permissions": "rw"
+                },
+                {
+                    "path": "calibration_cube.gcode",
+                    "modified": 1634567800.456,
+                    "size": 2048000,
+                    "permissions": "rw"
+                }
+            ]
+        }
+        self.send_json_response(response)
+    
+    def send_temperature_store(self):
+        """Send temperature history response"""
+        response = {
+            "result": {
+                "extruder": {
+                    "temperatures": [22.5, 22.6, 22.4, 22.7],
+                    "targets": [0.0, 0.0, 0.0, 0.0],
+                    "powers": [0.0, 0.0, 0.0, 0.0]
+                },
+                "heater_bed": {
+                    "temperatures": [21.8, 21.9, 21.7, 22.0],
+                    "targets": [0.0, 0.0, 0.0, 0.0],
+                    "powers": [0.0, 0.0, 0.0, 0.0]
+                }
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_emergency_stop(self):
+        """Send emergency stop response"""
+        response = {"result": "ok"}
+        self.send_json_response(response)
+        print("MOCK: Emergency stop triggered!")
+    
+    def send_gcode_script(self):
+        """Send G-code script response"""
+        response = {"result": "ok"}
+        self.send_json_response(response)
+    
+    def send_print_control(self, action):
+        """Send print control response"""
+        response = {"result": "ok"}
+        self.send_json_response(response)
+        print(f"MOCK: Print {action} requested")
+    
+    def send_printer_buddy_status(self):
+        """Send Printer Buddy status response"""
+        # Convert mock printer data to Printer Buddy format
+        scenario_data = self.printer_data.get("scenarios", {}).get("standby", {}).get("data", {})
+        
+        # Extract temperature data in the format the UI expects
+        extruder_data = scenario_data.get("extruder", {})
+        bed_data = scenario_data.get("heater_bed", {})
+        
+        response = {
+            "status": "success",
+            "data": {
+                "printer_state": scenario_data.get("print_stats", {}).get("state", "standby"),
+                "temperatures": {
+                    # Flat temperature structure that UI expects
+                    "extruder": extruder_data.get("temperature", 0),
+                    "extruder_target": extruder_data.get("target", 0),
+                    "bed": bed_data.get("temperature", 0),
+                    "bed_target": bed_data.get("target", 0)
+                },
+                "position": {
+                    "x": scenario_data.get("toolhead", {}).get("position", [0, 0, 0, 0])[0],
+                    "y": scenario_data.get("toolhead", {}).get("position", [0, 0, 0, 0])[1],
+                    "z": scenario_data.get("toolhead", {}).get("position", [0, 0, 0, 0])[2]
+                },
+                "homed_axes": scenario_data.get("toolhead", {}).get("homed_axes", ""),
+                "print_progress": scenario_data.get("display_status", {}).get("progress", 0),
+                "print_file": scenario_data.get("print_stats", {}).get("filename", ""),
+                "print_time": scenario_data.get("print_stats", {}).get("print_duration", 0)
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_printer_buddy_config(self):
+        """Send Printer Buddy config response"""
+        response = {
+            "status": "success",
+            "data": {
+                "printer_limits": {
+                    "x_min": 0, "x_max": 270,
+                    "y_min": 0, "y_max": 270,
+                    "z_min": 0, "z_max": 300
+                },
+                "temperature_limits": {
+                    "extruder_max": 260,
+                    "bed_max": 100
+                },
+                "safety_settings": {
+                    "emergency_stop_enabled": True,
+                    "thermal_protection": True
+                }
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_printer_buddy_logs(self):
+        """Send Printer Buddy logs response"""
+        response = {
+            "status": "success",
+            "data": {
+                "logs": [
+                    {"timestamp": "2025-09-19 21:00:00", "level": "INFO", "message": "Mock development server started"},
+                    {"timestamp": "2025-09-19 21:00:01", "level": "INFO", "message": "Printer status: standby"},
+                    {"timestamp": "2025-09-19 21:00:02", "level": "DEBUG", "message": "Temperature readings: E:22.5°C B:21.8°C"}
+                ]
+            }
+        }
+        self.send_json_response(response)
+    
+    def send_logs_list(self):
+        """Send list of available log files"""
+        response = {
+            "success": True,
+            "files": [
+                {
+                    "name": "klippy.log",
+                    "path": "/logs/klippy.log",
+                    "size": 12345,
+                    "modified": time.time() - 3600
+                },
+                {
+                    "name": "moonraker.log", 
+                    "path": "/logs/moonraker.log",
+                    "size": 8765,
+                    "modified": time.time() - 1800
+                },
+                {
+                    "name": "printer_buddy.log",
+                    "path": "/logs/printer_buddy.log", 
+                    "size": 4321,
+                    "modified": time.time() - 900
+                }
+            ]
+        }
+        self.send_json_response(response)
+    
+    def send_log_file(self, query_params):
+        """Send content of a specific log file"""
+        path = query_params.get('path', [''])[0]
+        
+        # Mock log content based on file type
+        if 'klippy' in path:
+            content = """2025-01-14 21:15:23,456 INFO Starting Klippy...
+2025-01-14 21:15:23,457 INFO Starting SD card...
+2025-01-14 21:15:23,458 INFO Initialized heater_bed
+2025-01-14 21:15:23,459 INFO Initialized extruder
+2025-01-14 21:15:23,460 INFO Printer is ready
+2025-01-14 21:15:24,123 INFO Temperature: B:21.8/0.0 T0:22.5/0.0
+2025-01-14 21:15:25,456 INFO Homing X Y Z
+2025-01-14 21:15:26,789 INFO Homing complete"""
+        elif 'moonraker' in path:
+            content = """2025-01-14 21:15:20,123 INFO Starting Moonraker v0.8.0
+2025-01-14 21:15:20,124 INFO Loading configuration from moonraker.conf
+2025-01-14 21:15:20,125 INFO Starting websocket server on port 7125
+2025-01-14 21:15:21,456 INFO Connected to Klippy
+2025-01-14 21:15:22,789 INFO API server ready"""
+        elif 'printer_buddy' in path:
+            content = """2025-01-14 21:15:30,000 INFO Printer Buddy starting...
+2025-01-14 21:15:30,001 INFO Loading configuration
+2025-01-14 21:15:30,002 INFO Connecting to Moonraker
+2025-01-14 21:15:31,123 INFO Safety systems initialized
+2025-01-14 21:15:31,124 INFO Commissioning system ready
+2025-01-14 21:15:32,456 INFO Web UI started on port 8080"""
+        else:
+            content = "Log file not found or empty"
+        
+        response = {
+            "success": True,
+            "content": content
+        }
+        self.send_json_response(response)
+    
+    def send_api_gcode(self):
+        """Handle G-code commands sent through API"""
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        
+        try:
+            data = json.loads(post_data)
+            command = data.get('command', '')
+            
+            print(f"G-code command received: {command}")
+            
+            # Mock response based on command
+            if command.upper().startswith('M104') or command.upper().startswith('M109'):
+                response = {
+                    "success": True,
+                    "message": f"Heating extruder..."
+                }
+            elif command.upper().startswith('M140') or command.upper().startswith('M190'):
+                response = {
+                    "success": True,
+                    "message": f"Heating bed..."
+                }
+            elif command.upper().startswith('G28'):
+                response = {
+                    "success": True,
+                    "message": f"Homing axes..."
+                }
+            elif command.upper().startswith('M112'):
+                response = {
+                    "success": True,
+                    "message": f"Emergency stop triggered!"
+                }
+            else:
+                response = {
+                    "success": True,
+                    "message": f"Command '{command}' executed"
+                }
+            
+        except json.JSONDecodeError:
+            response = {
+                "success": False,
+                "error": "Invalid JSON in request body"
+            }
+        
+        self.send_json_response(response)
+    
+    def serve_ui_file(self, file_path):
+        """Serve static UI files"""
+        # Look for UI files in the web directory
+        web_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'web')
+        full_path = os.path.join(web_dir, file_path)
+        
+        if os.path.exists(full_path):
+            try:
+                with open(full_path, 'rb') as f:
+                    content = f.read()
+                
+                # Determine content type
+                if file_path.endswith('.html'):
+                    content_type = 'text/html'
+                elif file_path.endswith('.css'):
+                    content_type = 'text/css'
+                elif file_path.endswith('.js'):
+                    content_type = 'application/javascript'
+                else:
+                    content_type = 'text/plain'
+                
+                self.send_response(200)
+                self.send_header('Content-Type', content_type)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content)
+                
+            except Exception as e:
+                print(f"Error serving {file_path}: {e}")
+                self.send_404()
+        else:
+            print(f"File not found: {full_path}")
+            self.send_404()
+
+    def send_404(self):
+        """Send 404 not found response"""
+        response = {
+            "error": {
+                "code": 404,
+                "message": f"Path not found: {self.path}"
+            }
+        }
+        self.send_json_response(response, 404)
+    
+    def send_tests_list(self):
+        """Return list of available commissioning tests from test manager"""
+        # DEAD CODE: test_manager functions moved to printer_tests_module
+        # This mock server is not updated for the new architecture
+        response = {
+            "result": {
+                "tests": []  # Empty list since test_manager functions are no longer available
+            },
+            "error": "Mock server not updated for new architecture"
+        }
+        self.send_json_response(response)
+    
+    async def send_test_run(self, test_id):
+        """Start running a specific test using test manager"""
+        print(f"DEBUG: send_test_run called with test_id: {test_id}")
+        try:
+            print(f"DEBUG: About to call run_test({test_id})")
+            result = await run_test(test_id)
+            print(f"DEBUG: run_test returned: {result}")
+            response = {
+                "result": result
+            }
+            self.send_json_response(response)
+        except ValueError as e:
+            print(f"DEBUG: ValueError in run_test: {e}")
+            response = {
+                "error": {
+                    "code": 400,
+                    "message": str(e)
+                }
+            }
+            self.send_json_response(response, 400)
+        except Exception as e:
+            print(f"DEBUG: Exception in run_test: {e}")
+            response = {
+                "error": {
+                    "code": 500,
+                    "message": f"Error starting test: {str(e)}"
+                }
+            }
+            self.send_json_response(response, 500)
+    
+    def send_test_status(self, query_params):
+        """Get status of a running test using test manager"""
+        try:
+            # Extract run_id from query parameters
+            run_id = query_params.get('run_id', [None])[0]
+            print(f"DEBUG: Checking test status for run_id: {run_id}")
+            
+            if not run_id:
+                response = {
+                    "error": {
+                        "code": 400,
+                        "message": "run_id parameter is required"
+                    }
+                }
+                print(f"DEBUG: Missing run_id parameter")
+                self.send_json_response(response, 400)
+                return
+            
+            status = get_run_status(run_id)
+            print(f"DEBUG: Status for {run_id}: {status}")
+            if status:
+                response = {
+                    "result": status
+                }
+                self.send_json_response(response)
+            else:
+                response = {
+                    "error": {
+                        "code": 404,
+                        "message": f"Test run not found: {run_id}"
+                    }
+                }
+                self.send_json_response(response, 404)
+        except Exception as e:
+            response = {
+                "error": {
+                    "code": 500,
+                    "message": f"Error getting test status: {str(e)}"
+                }
+            }
+            self.send_json_response(response, 500)
+    
+    async def send_test_respond(self, run_id, response_data):
+        """Handle user response to test prompt using test manager"""
+        try:
+            user_response = response_data.get('response', '')
+            result = await respond_to_run(run_id, user_response)
+            response = {
+                "result": result
+            }
+            self.send_json_response(response)
+        except ValueError as e:
+            response = {
+                "error": {
+                    "code": 400,
+                    "message": str(e)
+                }
+            }
+            self.send_json_response(response, 400)
+        except Exception as e:
+            response = {
+                "error": {
+                    "code": 500,
+                    "message": f"Error processing response: {str(e)}"
+                }
+            }
+            self.send_json_response(response, 500)
+    
+    def do_OPTIONS(self):
+        """Handle CORS preflight requests"""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
+    def log_message(self, format, *args):
+        """Override log message to reduce noise"""
+        pass  # Suppress default request logging
+
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
+    """Threaded HTTP server for handling multiple connections"""
+    allow_reuse_address = True
+
+def start_mock_server(port=7125, host='localhost'):
+    """Start the mock Moonraker server"""
+    server_address = (host, port)
+    httpd = ThreadedHTTPServer(server_address, MockMoonrakerHandler)
+    
+    print(f"🚀 Mock Moonraker API Server starting...")
+    print(f"📡 Server running at: http://{host}:{port}")
+    print(f"🔧 API Base URL: http://{host}:{port}")
+    print(f"📊 WebSocket URL: ws://{host}:{port}/websocket (not implemented yet)")
+    print(f"💡 Use Ctrl+C to stop the server")
+    print("-" * 50)
+    
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\n🛑 Server stopped by user")
+        httpd.shutdown()
+
+if __name__ == '__main__':
+    start_mock_server()

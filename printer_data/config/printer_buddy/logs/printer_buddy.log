@@ -1,0 +1,50 @@
+INFO:__main__:Starting Printer Buddy (Production Mode)...
+INFO:__main__:HARDCODED: Using REAL hardware mode
+INFO:__main__:Moonraker URL: http://localhost:7125
+INFO:core.utils.manager:Initializing with REAL hardware mode (Moonraker: http://localhost:7125)
+INFO:core.utils.manager:Initialized Moonraker printer manager: http://localhost:7125
+INFO:core.utils.manager:Initialized Moonraker config parser: http://localhost:7125
+INFO:core.utils.manager:Testing Moonraker connection...
+INFO:core.utils.manager:Moonraker connection test successful: v0.9.3-107-gdf3965e
+INFO:core.utils.manager:Moonraker connection verified - printer operations will be REAL
+INFO:core.utils.manager:PrinterBuddyCore v2.0.0 initialized (mode: real)
+INFO:core.utils.manager:Initializing all modules...
+INFO:core.utils.manager:Fetched config from Moonraker: 0 sections
+INFO:core.utils.manager:MoonrakerConfigParser initialized with processed config
+INFO:core.modules:Module created: Printer Tests Manager (printer_tests)
+INFO:core.utils.manager:Registering module: Printer Tests Manager
+INFO:core.utils.manager:PrinterTestsModule loaded
+INFO:core.utils.manager:Initializing module: printer_tests
+INFO:core.modules:Module printer_tests status: uninitialized -> initializing
+INFO:core.modules.printer_tests_module:Initializing Printer Tests Module...
+INFO:core.modules.printer_tests_module:Discovered test: Safety Validation (safety_validation)
+INFO:core.modules.printer_tests_module:Discovered 1 tests
+INFO:core.modules:Module printer_tests status: initializing -> ready
+INFO:core.modules.printer_tests_module:Printer Tests Module initialized successfully
+INFO:core.utils.manager:Module printer_tests initialized successfully
+INFO:core.utils.manager:All modules initialized
+INFO:__main__:Printer Buddy initialized successfully
+INFO:__main__:Starting API server on http://localhost:8080
+INFO:core.utils.manager:Starting API server on 0.0.0.0:8080
+INFO:api.server:API server started on http://0.0.0.0:8080
+INFO:__main__:============================================================
+INFO:__main__:PRODUCTION MODE - REAL HARDWARE
+INFO:__main__:Web interface: http://localhost:8080
+INFO:__main__:Connected to Moonraker: http://localhost:7125
+INFO:__main__:All printer operations are REAL
+INFO:__main__:BE CAREFUL - this controls actual hardware!
+INFO:__main__:Press Ctrl+C to stop
+INFO:__main__:============================================================
+INFO:api.server:API Status: connection_status = connected
+INFO:api.server:API: Received UI config request for test_id: 'safety_validation'
+INFO:api.server:API: Calling printer_tests_module.get_test_ui_config('safety_validation')
+INFO:core.modules.printer_tests_module:PrinterTestsModule.get_test_ui_config() called with test_id: 'safety_validation'
+INFO:core.modules.printer_tests_module:Checking 0 running tests...
+INFO:core.modules.printer_tests_module:Checking 1 discovered tests...
+INFO:core.modules.printer_tests_module:Checking discovered test_id: 'safety_validation' against requested test_id: 'safety_validation'
+INFO:core.modules.printer_tests_module:Match found! Creating temp instance of SafetyValidationTest
+INFO:core.modules.printer_tests_module:Calling get_ui_config() on temp instance
+INFO:printer_tests.SafetyValidationTest:SafetyValidationTest.get_ui_config() called - generating UI config
+INFO:printer_tests.SafetyValidationTest:SafetyValidationTest UI config generated: 3 sections
+INFO:core.modules.printer_tests_module:Returning UI config for available test
+INFO:api.server:API: UI config found, sending response with 4 keys
