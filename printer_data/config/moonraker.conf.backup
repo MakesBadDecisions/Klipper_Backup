@@ -3,6 +3,9 @@ host: 0.0.0.0
 port: 7125
 klippy_uds_address: /home/teola/printer_data/comms/klippy.sock
 
+[file_manager]
+enable_object_processing: True
+
 [authorization]
 trusted_clients:
     10.0.0.0/8
@@ -25,6 +28,8 @@ cors_domains:
 
 [history]
 
+
+
 [update_manager]
 channel: dev
 refresh_interval: 168
@@ -41,3 +46,36 @@ type: web
 channel: stable
 repo: mainsail-crew/mainsail
 path: ~/mainsail
+
+[update_manager crowsnest]
+type: git_repo
+path: ~/crowsnest
+origin: https://github.com/mainsail-crew/crowsnest.git
+install_script: tools/pkglist.sh
+[update_manager klipper-backup]
+type: git_repo
+path: ~/klipper-backup
+origin: https://github.com/Staubgeborener/klipper-backup.git
+managed_services: moonraker
+primary_branch: main
+
+[update_manager Klipper-Adaptive-Meshing-Purging]
+type: git_repo
+channel: dev
+path: ~/Klipper-Adaptive-Meshing-Purging
+origin: https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging.git
+managed_services: klipper
+primary_branch: main
+
+[lumen]
+config_path: /home/teola/printer_data/config/lumen.cfg
+# debug: False # No LUMEN debug output ✅
+# debug: True # LUMEN logs to journalctl only (not console) ✅
+debug: console # LUMEN logs to both journalctl AND Mainsail console
+
+[update_manager lumen]
+type: git_repo
+path: /home/teola/lumen
+origin: https://github.com/MakesBadDecisions/Lumen_RPI.git
+managed_services: moonraker
+primary_branch: main
