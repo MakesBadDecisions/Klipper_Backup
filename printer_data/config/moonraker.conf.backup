@@ -28,8 +28,6 @@ cors_domains:
 
 [history]
 
-
-
 [update_manager]
 channel: dev
 refresh_interval: 168
@@ -69,9 +67,9 @@ primary_branch: main
 
 [lumen]
 config_path: /home/teola/printer_data/config/lumen.cfg
-# debug: False # No LUMEN debug output ✅
-# debug: True # LUMEN logs to journalctl only (not console) ✅
-debug: console # LUMEN logs to both journalctl AND Mainsail console
+# debug: False             # No LUMEN debug output
+# debug: True              # LUMEN logs to journalctl only
+debug: console           # LUMEN logs to journalctl + Mainsail console
 
 [update_manager lumen]
 type: git_repo
